@@ -42,7 +42,7 @@ KDC = colors.HexColor("#1357A6")      # Kundennummer
 ACC = colors.HexColor("#D81E05")      # nur Leergut
 ACC_BG = colors.HexColor("#FBEAE8")
 
-ROW_H = 15.9 * mm
+ROW_H_MIN = 13.5 * mm
 FIELD_H = 12.6 * mm
 FOOT_H = 17.0 * mm
 
@@ -268,7 +268,7 @@ def _styles():
         "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=9.4, textColor=INK, alignment=1, leading=10.0),
         "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=9.0, textColor=INK, alignment=1, leading=9.8),
         "csb": ParagraphStyle("csb", fontName="Helvetica-Bold", fontSize=8.2, textColor=INK, alignment=1, leading=8.8),
-        "cust": ParagraphStyle("cust", fontName="Helvetica", fontSize=8.4, textColor=GRY, leading=10.8),
+        "cust": ParagraphStyle("cust", fontName="Helvetica", fontSize=8.1, textColor=GRY, leading=9.6),
     }
 
 
@@ -283,9 +283,24 @@ def _meta_line(label: str, value: str) -> str:
     return f"<font name=Helvetica-Bold color='#6B7075'>{escape(label)}</font>&nbsp;{_html(value)}"
 
 def _nowrap_num(value, style):
-    """Nummernzelle ohne Umbruch darstellen. Wichtig für CSB und Ladenummer."""
+    """Nummernzelle ohne Umbruch darstellen. Wichtig für Kundennummer und Ladenummer."""
     txt = _html(value)
     return Paragraph(f"<nobr>{txt}</nobr>", style)
+
+
+def _estimate_customer_row_height(k) -> float:
+    """Dynamische Zeilenhöhe, damit lange Markt-Namen/Adressen nicht in die nächste Zeile laufen."""
+    text_len = max(len(_clean(k.get("name", ""))), len(_clean(k.get("adr", ""))))
+    tel_extra = 1 if _clean(k.get("tel", "")) else 0
+    # Grundhöhe für Name + Adresse + optional Telefon, danach Zuschläge für lange Inhalte
+    lines = 2 + tel_extra
+    if text_len > 34:
+        lines += 1
+    if text_len > 62:
+        lines += 1
+    if text_len > 88:
+        lines += 1
+    return max(ROW_H_MIN, (5.0 + lines * 3.55) * mm)
 
 
 
@@ -353,6 +368,7 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     # Kundentabelle: Kundennummer sichtbar als eigene, ruhige Spalte.
     # Telefon steht direkt unter der Adresse.
     # Nummernspalten kleiner, damit rechts mehr Platz für die Mengen bleibt.
+    # Kundenzeilen wachsen dynamisch, damit lange Namen und Adressen nicht überlappen.
     cw_mm = [7, 14, 12, 14, 56, 12, 12, 12, 12, 12, 10, 10]
     cw = [x * mm for x in cw_mm]
 
@@ -374,11 +390,11 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     row_heights = [None, None]
 
     for k in kunden:
-        name = f"<font name=Helvetica-Bold size=9.1 color='#16181C'>{_html(k['name'])}</font>"
-        adr = f"<font name=Helvetica size=7.7 color='#3A3F45'>{_html(k['adr'])}</font>"
+        name = f"<font name=Helvetica-Bold size=8.7 color='#16181C'>{_html(k['name'])}</font>"
+        adr = f"<font name=Helvetica size=7.3 color='#3A3F45'>{_html(k['adr'])}</font>"
         tel = ""
         if k.get("tel", ""):
-            tel = f"<br/><font name=Helvetica size=7.5 color='#6B7075'>Tel. {_html(k['tel'])}</font>"
+            tel = f"<br/><font name=Helvetica size=7.1 color='#6B7075'>Tel. {_html(k['tel'])}</font>"
         kunde_cell = Paragraph(f"{name}<br/>{adr}{tel}", s["cust"])
 
         data.append([
@@ -389,7 +405,7 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
             kunde_cell,
             "", "", "", "", "", "", "",
         ])
-        row_heights.append(ROW_H)
+        row_heights.append(_estimate_customer_row_height(k))
 
     tab = Table(data, colWidths=cw, rowHeights=row_heights, repeatRows=2)
     tab.setStyle(TableStyle([
@@ -405,10 +421,10 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         ("TOPPADDING", (0, 0), (-1, 1), 4), ("BOTTOMPADDING", (0, 0), (-1, 1), 4),
         ("LINEBELOW", (0, 1), (-1, 1), 0.9, INK),
         ("VALIGN", (0, 2), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 2), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 2), (-1, -1), 4),
-        ("LEFTPADDING", (4, 2), (4, -1), 7),
-        ("TOPPADDING", (0, 2), (-1, -1), 5), ("BOTTOMPADDING", (0, 2), (-1, -1), 5),
+        ("LEFTPADDING", (0, 2), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 2), (-1, -1), 3),
+        ("LEFTPADDING", (4, 2), (4, -1), 5),
+        ("TOPPADDING", (0, 2), (-1, -1), 3), ("BOTTOMPADDING", (0, 2), (-1, -1), 3),
         ("LINEBELOW", (0, 1), (-1, -1), 0.55, LINE),
         ("LINEAFTER", (0, 0), (4, -1), 0.55, LINE),
         ("INNERGRID", (5, 2), (11, -1), 0.55, LINE),
@@ -465,7 +481,7 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tag
 
 # ------------------------------------------------------------------ UI
 st.title("🚚 Tour-/Ladeplan-Generator")
-st.caption("Markt-Schlüssel und Ladenummer werden über die Kundennummer (CSB) gematcht. Kundennummer wird angezeigt. Nummern sind kleiner gesetzt, damit rechts mehr Platz für Mengen bleibt.")
+st.caption("Markt-Schlüssel und Ladenummer werden über die Kundennummer (CSB) gematcht. Kundennummer wird angezeigt. Nummern sind kleiner gesetzt, rechts ist mehr Platz für Mengen, und lange Kundeneinträge bekommen automatisch höhere Zeilen.")
 
 up = st.file_uploader("1) Quelldatei (.xlsx)", type=["xlsx"], key="quelldatei_upload")
 csv_up = st.file_uploader("2) Schlüsseldatei (.csv) — optional", type=["csv"], key="schluesseldatei_upload")
