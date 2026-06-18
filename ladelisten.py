@@ -42,9 +42,9 @@ KDC = colors.HexColor("#1357A6")      # Kundennummer
 ACC = colors.HexColor("#D81E05")      # nur Leergut
 ACC_BG = colors.HexColor("#FBEAE8")
 
-ROW_H_MIN = 13.5 * mm
-FIELD_H = 12.6 * mm
-FOOT_H = 17.0 * mm
+ROW_H_MIN = 12.0 * mm
+FIELD_H = 10.8 * mm
+FOOT_H = 14.0 * mm
 
 
 # ------------------------------------------------------------------ Hilfsfunktionen
@@ -254,16 +254,16 @@ def lade_ladenummern(csv_bytes: bytes):
 # ------------------------------------------------------------------ Styles
 def _styles():
     return {
-        "title": ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=15, textColor=INK, leading=17),
-        "code": ParagraphStyle("code", fontName="Helvetica", fontSize=8, textColor=MUTE, alignment=2, leading=10),
-        "tour": ParagraphStyle("tour", fontName="Helvetica-Bold", fontSize=23, textColor=INK, leading=24),
-        "tourlbl": ParagraphStyle("tourlbl", fontName="Helvetica-Bold", fontSize=7.2, textColor=MUTE, leading=8.5),
-        "chip": ParagraphStyle("chip", fontName="Helvetica-Bold", fontSize=9.5, textColor=INK, leading=11),
-        "chiplbl": ParagraphStyle("chiplbl", fontName="Helvetica", fontSize=6.8, textColor=MUTE, leading=8),
-        "flbl": ParagraphStyle("flbl", fontName="Helvetica-Bold", fontSize=6.5, textColor=MUTE, leading=8),
-        "warn": ParagraphStyle("warn", fontName="Helvetica-Bold", fontSize=9.5, textColor=ACC, leading=12),
-        "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=6.4, textColor=INK, leading=7.8, alignment=1),
-        "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=6.4, textColor=INK, leading=7.8),
+        "title": ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=13.2, textColor=INK, leading=14.5),
+        "code": ParagraphStyle("code", fontName="Helvetica", fontSize=7.2, textColor=MUTE, alignment=2, leading=8.5),
+        "tour": ParagraphStyle("tour", fontName="Helvetica-Bold", fontSize=20, textColor=INK, leading=20.5),
+        "tourlbl": ParagraphStyle("tourlbl", fontName="Helvetica-Bold", fontSize=6.6, textColor=MUTE, leading=7.5),
+        "chip": ParagraphStyle("chip", fontName="Helvetica-Bold", fontSize=8.6, textColor=INK, leading=9.5),
+        "chiplbl": ParagraphStyle("chiplbl", fontName="Helvetica", fontSize=6.1, textColor=MUTE, leading=6.9),
+        "flbl": ParagraphStyle("flbl", fontName="Helvetica-Bold", fontSize=6.0, textColor=MUTE, leading=7.0),
+        "warn": ParagraphStyle("warn", fontName="Helvetica-Bold", fontSize=8.5, textColor=ACC, leading=10.0),
+        "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=5.7, textColor=INK, leading=6.4, alignment=1),
+        "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=5.9, textColor=INK, leading=6.6),
         "lf": ParagraphStyle("lf", fontName="Helvetica-Bold", fontSize=9.6, textColor=INK, alignment=1, leading=10.2),
         "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=9.4, textColor=INK, alignment=1, leading=10.0),
         "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=9.0, textColor=INK, alignment=1, leading=9.8),
@@ -274,7 +274,7 @@ def _styles():
 
 def _flabel(s, label):
     label_txt = escape(label.upper()).replace(" ", "&nbsp;")
-    return Paragraph(f"<font name=Helvetica-Bold size=6.2 color='#6B7075'>{label_txt}</font>", s["flbl"])
+    return Paragraph(f"<font name=Helvetica-Bold size=5.8 color='#6B7075'>{label_txt}</font>", s["flbl"])
 
 
 def _meta_line(label: str, value: str) -> str:
@@ -300,7 +300,7 @@ def _estimate_customer_row_height(k) -> float:
         lines += 1
     if text_len > 88:
         lines += 1
-    return max(ROW_H_MIN, (5.0 + lines * 3.55) * mm)
+    return max(ROW_H_MIN, (4.0 + lines * 3.05) * mm)
 
 
 
@@ -313,8 +313,8 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     band.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
         ("LEFTPADDING", (0, 0), (0, 0), 0), ("RIGHTPADDING", (1, 0), (1, 0), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("LINEBELOW", (0, 0), (-1, -1), 1.4, INK),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LINEBELOW", (0, 0), (-1, -1), 1.1, INK),
     ]))
     el.append(band)
 
@@ -326,17 +326,17 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     chips = Table(
         [[Paragraph("TOUR", s["tourlbl"]), *[c[0] for c in cells]],
          [Paragraph(str(tour), s["tour"]), *[c[1] for c in cells]]],
-        colWidths=[W * 0.22, W * 0.205, W * 0.205, W * 0.19, W * 0.18])
+        colWidths=[W * 0.22, W * 0.205, W * 0.205, W * 0.20, W * 0.17])
     chips.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LINEBELOW", (0, -1), (-1, -1), 1.2, INK),
-        ("LINEAFTER", (0, 0), (0, -1), 0.6, LINE),
-        ("LEFTPADDING", (1, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, 0), 5), ("BOTTOMPADDING", (0, -1), (-1, -1), 5),
+        ("LINEBELOW", (0, -1), (-1, -1), 1.0, INK),
+        ("LINEAFTER", (0, 0), (0, -1), 0.55, LINE),
+        ("LEFTPADDING", (1, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, 0), 3), ("BOTTOMPADDING", (0, -1), (-1, -1), 3),
         ("TOPPADDING", (0, 1), (-1, 1), 0),
     ]))
     el.append(chips)
-    el.append(Spacer(1, 5))
+    el.append(Spacer(1, 3))
 
     # Gleichmäßiges Grid oben: 3 Reihen mit 4 gleich breiten Feldern.
     fields = [
@@ -349,34 +349,36 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     ftab.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.55, LINE),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BACKGROUND", (0, 0), (-1, -1), colors.white),
     ]))
     el.append(ftab)
-    el.append(Spacer(1, 4))
+    el.append(Spacer(1, 3))
 
     warn = Table([[Paragraph("ACHTUNG — zwingend gesamtes Leergut abräumen.", s["warn"])]], colWidths=[W])
     warn.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), ACC_BG),
         ("LINEBEFORE", (0, 0), (0, -1), 3, ACC),
-        ("LEFTPADDING", (0, 0), (-1, -1), 9), ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
     el.append(warn)
-    el.append(Spacer(1, 7))
+    el.append(Spacer(1, 4))
 
     # Kundentabelle: Kundennummer sichtbar als eigene, ruhige Spalte.
     # Telefon steht direkt unter der Adresse.
     # Nummernspalten kleiner, damit rechts mehr Platz für die Mengen bleibt.
     # Kundenzeilen wachsen dynamisch, damit lange Namen und Adressen nicht überlappen.
-    cw_mm = [7, 14, 12, 14, 56, 12, 12, 12, 12, 12, 10, 10]
+    cw_mm = [6.5, 15, 11.5, 13.5, None, 12.5, 12.5, 12.5, 12.5, 12.5, 10, 10]
+    fixed = sum(x for x in cw_mm if x is not None) * mm
+    cw_mm[4] = max(50, (W - fixed) / mm)
     cw = [x * mm for x in cw_mm]
 
     head0 = [
         Paragraph("LF", s["thead"]),
-        Paragraph("MARKT-SCHLÜSSEL", s["thead"]),
+        Paragraph("MARKT-<br/>SCHLÜSSEL", s["thead"]),
         Paragraph("LADENR.", s["thead"]),
-        Paragraph("KUNDENNUMMER", s["thead"]),
+        Paragraph("KUNDEN-<br/>NUMMER", s["thead"]),
         Paragraph("KUNDE / ADRESSE / TELEFON", s["theadL"]),
         Paragraph("TRANSPORT", s["thead"]), "", "", "", "",
         Paragraph("ZEIT", s["thead"]), "",
@@ -390,11 +392,11 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     row_heights = [None, None]
 
     for k in kunden:
-        name = f"<font name=Helvetica-Bold size=8.7 color='#16181C'>{_html(k['name'])}</font>"
-        adr = f"<font name=Helvetica size=7.3 color='#3A3F45'>{_html(k['adr'])}</font>"
+        name = f"<font name=Helvetica-Bold size=8.3 color='#16181C'>{_html(k['name'])}</font>"
+        adr = f"<font name=Helvetica size=7.0 color='#3A3F45'>{_html(k['adr'])}</font>"
         tel = ""
         if k.get("tel", ""):
-            tel = f"<br/><font name=Helvetica size=7.1 color='#6B7075'>Tel. {_html(k['tel'])}</font>"
+            tel = f"<br/><font name=Helvetica size=6.8 color='#6B7075'>Tel. {_html(k['tel'])}</font>"
         kunde_cell = Paragraph(f"{name}<br/>{adr}{tel}", s["cust"])
 
         data.append([
@@ -418,28 +420,28 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         ("SPAN", (5, 0), (9, 0)),
         ("SPAN", (10, 0), (11, 0)),
         ("VALIGN", (0, 0), (-1, 1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, 1), 4), ("BOTTOMPADDING", (0, 0), (-1, 1), 4),
-        ("LINEBELOW", (0, 1), (-1, 1), 0.9, INK),
+        ("TOPPADDING", (0, 0), (-1, 1), 3), ("BOTTOMPADDING", (0, 0), (-1, 1), 3),
+        ("LINEBELOW", (0, 1), (-1, 1), 0.8, INK),
         ("VALIGN", (0, 2), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 2), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 2), (-1, -1), 3),
-        ("LEFTPADDING", (4, 2), (4, -1), 5),
-        ("TOPPADDING", (0, 2), (-1, -1), 3), ("BOTTOMPADDING", (0, 2), (-1, -1), 3),
-        ("LINEBELOW", (0, 1), (-1, -1), 0.55, LINE),
-        ("LINEAFTER", (0, 0), (4, -1), 0.55, LINE),
-        ("INNERGRID", (5, 2), (11, -1), 0.55, LINE),
-        ("LINEAFTER", (9, 0), (9, -1), 0.55, LINE),
-        ("BOX", (0, 0), (-1, -1), 0.9, INK),
+        ("LEFTPADDING", (0, 2), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 2), (-1, -1), 2),
+        ("LEFTPADDING", (4, 2), (4, -1), 4),
+        ("TOPPADDING", (0, 2), (-1, -1), 2), ("BOTTOMPADDING", (0, 2), (-1, -1), 2),
+        ("LINEBELOW", (0, 1), (-1, -1), 0.5, LINE),
+        ("LINEAFTER", (0, 0), (4, -1), 0.5, LINE),
+        ("INNERGRID", (5, 2), (11, -1), 0.5, LINE),
+        ("LINEAFTER", (9, 0), (9, -1), 0.5, LINE),
+        ("BOX", (0, 0), (-1, -1), 0.8, INK),
     ]))
     el.append(tab)
-    el.append(Spacer(1, 7))
+    el.append(Spacer(1, 4))
 
     foot = Table([[_flabel(s, "Summe Rollis"), _flabel(s, "Unterschrift Fahrer")]],
                  colWidths=[W * 0.28, W * 0.72], rowHeights=[FOOT_H])
     foot.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.55, LINE),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5), ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BACKGROUND", (0, 0), (-1, -1), colors.white),
     ]))
     el.append(foot)
@@ -448,8 +450,8 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
 
 def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tagname, datum_txt):
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=8 * mm, rightMargin=8 * mm,
-                            topMargin=9 * mm, bottomMargin=9 * mm, title=f"Ladeplan {tagname}")
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=4 * mm, rightMargin=4 * mm,
+                            topMargin=5 * mm, bottomMargin=5 * mm, title=f"Ladeplan {tagname}")
     s = _styles()
     W = doc.width
     story = []
@@ -481,7 +483,7 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tag
 
 # ------------------------------------------------------------------ UI
 st.title("🚚 Tour-/Ladeplan-Generator")
-st.caption("Markt-Schlüssel und Ladenummer werden über die Kundennummer (CSB) gematcht. Kundennummer wird angezeigt. Nummern sind kleiner gesetzt, rechts ist mehr Platz für Mengen, und lange Kundeneinträge bekommen automatisch höhere Zeilen.")
+st.caption("Kompakte Version: nutzt fast die ganze Seitenbreite, kleinere Abstände, kleinere Nummern und automatische Zeilenhöhen bei langen Kundeneinträgen.")
 
 up = st.file_uploader("1) Quelldatei (.xlsx)", type=["xlsx"], key="quelldatei_upload")
 csv_up = st.file_uploader("2) Schlüsseldatei (.csv) — optional", type=["csv"], key="schluesseldatei_upload")
