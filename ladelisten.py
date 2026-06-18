@@ -8,7 +8,7 @@ Logik:
 - Ladenummer/JPG-Nummer aus CSV wird ausschließlich über die CSB-Nummer gematcht
 - Depot aus DIREKT/MK/HUPA_NMS/HUPA_MALCHOW
 - Tag = 1. Ziffer der Tour (1=Mo .. 6=Sa); pro Tour eine A4-Hochkant-Seite
-Design: schwarz/weiß/grau, klare Felder, CSB sichtbar als eigene Spalte, Telefon unter Adresse, keine sichtbare Kundennummer-Dopplung.
+Design: schwarz/weiß/grau, gleichmäßiges Grid, Kundennummer sichtbar als eigene Spalte, Telefon unter Adresse, Nummern kleiner für mehr Platz in den Mengenfeldern.
 """
 import io
 import re
@@ -264,10 +264,10 @@ def _styles():
         "warn": ParagraphStyle("warn", fontName="Helvetica-Bold", fontSize=9.5, textColor=ACC, leading=12),
         "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=6.4, textColor=INK, leading=7.8, alignment=1),
         "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=6.4, textColor=INK, leading=7.8),
-        "lf": ParagraphStyle("lf", fontName="Helvetica-Bold", fontSize=11.0, textColor=INK, alignment=1, leading=11.8),
-        "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=11.0, textColor=INK, alignment=1, leading=11.8),
-        "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=10.0, textColor=INK, alignment=1, leading=10.8),
-        "csb": ParagraphStyle("csb", fontName="Helvetica-Bold", fontSize=8.8, textColor=INK, alignment=1, leading=9.6),
+        "lf": ParagraphStyle("lf", fontName="Helvetica-Bold", fontSize=9.6, textColor=INK, alignment=1, leading=10.2),
+        "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=9.4, textColor=INK, alignment=1, leading=10.0),
+        "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=9.0, textColor=INK, alignment=1, leading=9.8),
+        "csb": ParagraphStyle("csb", fontName="Helvetica-Bold", fontSize=8.2, textColor=INK, alignment=1, leading=8.8),
         "cust": ParagraphStyle("cust", fontName="Helvetica", fontSize=8.4, textColor=GRY, leading=10.8),
     }
 
@@ -323,13 +323,14 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el.append(chips)
     el.append(Spacer(1, 5))
 
-    # Ruhige Eingabefelder oben. Rolli-Rückgabe und Schlüssel bleiben oben, Summe Rollis unten.
+    # Gleichmäßiges Grid oben: 3 Reihen mit 4 gleich breiten Feldern.
     fields = [
         ["Name Fahrer", "Kennzeichen", "Tor", "LKW"],
         ["Kilometer Start", "Kilometer Ende", "Start Arbeitszeit", "Ende Arbeitszeit"],
+        ["Rolli Rückgabe", "Markt-Schlüssel", "Sonstiges", ""],
     ]
-    fdata = [[_flabel(s, f) for f in row] for row in fields]
-    ftab = Table(fdata, colWidths=[W / 4] * 4, rowHeights=[FIELD_H] * 2)
+    fdata = [[_flabel(s, f) if f else "" for f in row] for row in fields]
+    ftab = Table(fdata, colWidths=[W / 4] * 4, rowHeights=[FIELD_H] * 3)
     ftab.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.55, LINE),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -337,19 +338,6 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         ("BACKGROUND", (0, 0), (-1, -1), colors.white),
     ]))
     el.append(ftab)
-
-    extra_fields = Table(
-        [[_flabel(s, "Rolli Rückgabe"), _flabel(s, "Schlüssel"), _flabel(s, "Sonstiges")]],
-        colWidths=[W * 0.28, W * 0.22, W * 0.50],
-        rowHeights=[FIELD_H],
-    )
-    extra_fields.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.55, LINE),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-    ]))
-    el.append(extra_fields)
     el.append(Spacer(1, 4))
 
     warn = Table([[Paragraph("ACHTUNG — zwingend gesamtes Leergut abräumen.", s["warn"])]], colWidths=[W])
@@ -362,17 +350,17 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el.append(warn)
     el.append(Spacer(1, 7))
 
-    # Kundentabelle: CSB sichtbar als eigene, ruhige Spalte. Kundennummer bleibt intern.
+    # Kundentabelle: Kundennummer sichtbar als eigene, ruhige Spalte.
     # Telefon steht direkt unter der Adresse.
-    # Breitere Transportfelder: PA/TKT, RO, E2, E1 und KT sind jetzt gut beschreibbar.
-    cw_mm = [8, 18, 15, 13, 65, 11, 11, 11, 11, 11, 10, 10]
+    # Nummernspalten kleiner, damit rechts mehr Platz für die Mengen bleibt.
+    cw_mm = [7, 14, 12, 14, 56, 12, 12, 12, 12, 12, 10, 10]
     cw = [x * mm for x in cw_mm]
 
     head0 = [
         Paragraph("LF", s["thead"]),
-        Paragraph("SCHLÜSSEL", s["thead"]),
+        Paragraph("MARKT-SCHLÜSSEL", s["thead"]),
         Paragraph("LADENR.", s["thead"]),
-        Paragraph("CSB", s["thead"]),
+        Paragraph("KUNDENNUMMER", s["thead"]),
         Paragraph("KUNDE / ADRESSE / TELEFON", s["theadL"]),
         Paragraph("TRANSPORT", s["thead"]), "", "", "", "",
         Paragraph("ZEIT", s["thead"]), "",
@@ -460,9 +448,9 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tag
             adr = " · ".join([x for x in [_clean(r["Strasse"]), plz_ort] if x]).strip()
             kunden.append({
                 "lf": "" if pd.isna(r["LF"]) else str(int(r["LF"])),
-                "nr": csb2num.get(csb, ""),        # Schlüsselnummer per CSB-Nummer
-                "ladenr": csb2laden.get(csb, ""),  # Ladenummer/JPG-Nummer per CSB-Nummer
-                "csb": csb,                        # sichtbar als eigene Spalte
+                "nr": csb2num.get(csb, ""),        # Markt-Schlüssel per Kundennummer/CSB
+                "ladenr": csb2laden.get(csb, ""),  # Ladenummer/JPG-Nummer per Kundennummer/CSB
+                "csb": csb,                        # sichtbar als Kundennummer
                 "kd": sap2kd.get(sap, ""),         # nur intern / Debug
                 "tel": sap2tel.get(sap, ""),
                 "name": _clean(r["Name"]),
@@ -476,18 +464,12 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tag
 
 
 # ------------------------------------------------------------------ UI
-# Schutz gegen doppelt eingefügten Code: Wenn die UI in derselben Datei versehentlich
-# zweimal vorhanden ist, wird der zweite Block nicht mehr gerendert.
-if globals().get("_TOURENBLATT_UI_RENDERED", False):
-    st.stop()
-globals()["_TOURENBLATT_UI_RENDERED"] = True
-
 st.title("🚚 Tour-/Ladeplan-Generator")
-st.caption("Schlüssel und Ladenummer werden über die CSB-Nummer gematcht. CSB wird angezeigt, Kundennummer bleibt intern. Nummern sind kleiner und ohne Umbruch gesetzt.")
+st.caption("Markt-Schlüssel und Ladenummer werden über die Kundennummer (CSB) gematcht. Kundennummer wird angezeigt. Nummern sind kleiner gesetzt, damit rechts mehr Platz für Mengen bleibt.")
 
-up = st.file_uploader("1) Quelldatei (.xlsx)", type=["xlsx"], key="upload_quell_xlsx")
-csv_up = st.file_uploader("2) Schlüsseldatei (.csv) — optional", type=["csv"], key="upload_schluessel_csv")
-laden_up = st.file_uploader("3) Ladenummer-/JPG-Zuordnung (.csv) — optional", type=["csv"], key="upload_ladenummer_csv")
+up = st.file_uploader("1) Quelldatei (.xlsx)", type=["xlsx"], key="quelldatei_upload")
+csv_up = st.file_uploader("2) Schlüsseldatei (.csv) — optional", type=["csv"], key="schluesseldatei_upload")
+laden_up = st.file_uploader("3) Ladenummer-/JPG-Zuordnung (.csv) — optional", type=["csv"], key="ladenummer_upload")
 if not up:
     st.info("Quelldatei mit Blatt **LADEREIHENFOLGE** hochladen.")
     st.stop()
@@ -512,17 +494,17 @@ verf = sorted(df["TagZiffer"].unique())
 opt = {f"{TAGE[z]}  ({df.loc[df['TagZiffer'] == z, 'Tour'].nunique()} Touren)": z for z in verf}
 c1, c2 = st.columns([2, 1])
 with c1:
-    aus = st.selectbox("Tag (= 1. Ziffer der Tour)", list(opt.keys()), key="auswahl_tag")
+    aus = st.selectbox("Tag (= 1. Ziffer der Tour)", list(opt.keys()), key="tag_select")
 z = opt[aus]
 with c2:
     datum = st.date_input("Druckdatum", value=date.today(), format="DD.MM.YYYY", key="druckdatum")
 df_tag = df[df["TagZiffer"] == z]
 st.caption(f"{df_tag['Tour'].nunique()} Touren · {len(df_tag)} Kunden für **{TAGE[z]}**")
 
-if st.button("📄 Tour-/Ladepläne erzeugen", type="primary", use_container_width=True, key="button_pdf_erzeugen"):
+if st.button("📄 Tour-/Ladepläne erzeugen", type="primary", use_container_width=True, key="pdf_erzeugen"):
     with st.spinner("Erzeuge PDF …"):
         pdf = baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, TAGE[z], datum.strftime("%d.%m.%Y"))
     st.success(f"{df_tag['Tour'].nunique()} Tour-Seiten erzeugt.")
     st.download_button("⬇️ PDF herunterladen", data=pdf,
                        file_name=f"Ladeplan_{TAGE[z]}_{datum.strftime('%Y%m%d')}.pdf",
-                       mime="application/pdf", use_container_width=True, key="download_pdf_ladeplan")
+                       mime="application/pdf", use_container_width=True)
