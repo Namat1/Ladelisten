@@ -42,9 +42,9 @@ KDC = colors.HexColor("#1357A6")      # Kundennummer
 ACC = colors.HexColor("#D81E05")      # nur Leergut
 ACC_BG = colors.HexColor("#FBEAE8")
 
-ROW_H = 16.8 * mm
-FIELD_H = 13.5 * mm
-FOOT_H = 15.5 * mm
+ROW_H = 15.9 * mm
+FIELD_H = 12.6 * mm
+FOOT_H = 17.0 * mm
 
 
 # ------------------------------------------------------------------ Hilfsfunktionen
@@ -262,8 +262,8 @@ def _styles():
         "chiplbl": ParagraphStyle("chiplbl", fontName="Helvetica", fontSize=6.8, textColor=MUTE, leading=8),
         "flbl": ParagraphStyle("flbl", fontName="Helvetica-Bold", fontSize=6.5, textColor=MUTE, leading=8),
         "warn": ParagraphStyle("warn", fontName="Helvetica-Bold", fontSize=9.5, textColor=ACC, leading=12),
-        "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=6.8, textColor=INK, leading=8.2, alignment=1),
-        "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=6.8, textColor=INK, leading=8.2),
+        "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=6.4, textColor=INK, leading=7.8, alignment=1),
+        "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=6.4, textColor=INK, leading=7.8),
         "lf": ParagraphStyle("lf", fontName="Helvetica-Bold", fontSize=13.5, textColor=INK, alignment=1, leading=14),
         "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=14, textColor=INK, alignment=1, leading=15),
         "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=12.5, textColor=INK, alignment=1, leading=13.5),
@@ -273,7 +273,8 @@ def _styles():
 
 
 def _flabel(s, label):
-    return Paragraph(f"<font name=Helvetica-Bold size=6.5 color='#6B7075'>{escape(label.upper())}</font>", s["flbl"])
+    label_txt = escape(label.upper()).replace(" ", "&nbsp;")
+    return Paragraph(f"<font name=Helvetica-Bold size=6.2 color='#6B7075'>{label_txt}</font>", s["flbl"])
 
 
 def _meta_line(label: str, value: str) -> str:
@@ -286,7 +287,7 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el = []
 
     band = Table([[Paragraph("TOUR&nbsp;/&nbsp;LADEPLAN", s["title"]),
-                   Paragraph("Fleischwerk EDEKA Nord · NFC<br/>Beleg SY302/1", s["code"])]],
+                   Paragraph("Fleischwerk EDEKA Nord · NFC", s["code"])]],
                  colWidths=[W * 0.62, W * 0.38])
     band.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
@@ -316,7 +317,7 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el.append(chips)
     el.append(Spacer(1, 5))
 
-    # Bewusst nur zwei ruhige Eingabereihen oben. Restliche Summen stehen unten.
+    # Ruhige Eingabefelder oben. Rolli-Rückgabe und Schlüssel bleiben oben, Summe Rollis unten.
     fields = [
         ["Name Fahrer", "Kennzeichen", "Tor", "LKW"],
         ["Kilometer Start", "Kilometer Ende", "Start Arbeitszeit", "Ende Arbeitszeit"],
@@ -326,11 +327,24 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     ftab.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.55, LINE),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BACKGROUND", (0, 0), (-1, -1), colors.white),
     ]))
     el.append(ftab)
-    el.append(Spacer(1, 5))
+
+    extra_fields = Table(
+        [[_flabel(s, "Rolli Rückgabe"), _flabel(s, "Schlüssel"), _flabel(s, "Sonstiges")]],
+        colWidths=[W * 0.28, W * 0.22, W * 0.50],
+        rowHeights=[FIELD_H],
+    )
+    extra_fields.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.55, LINE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+    ]))
+    el.append(extra_fields)
+    el.append(Spacer(1, 4))
 
     warn = Table([[Paragraph("ACHTUNG — zwingend gesamtes Leergut abräumen.", s["warn"])]], colWidths=[W])
     warn.setStyle(TableStyle([
@@ -344,9 +358,8 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
 
     # Kundentabelle: CSB sichtbar als eigene, ruhige Spalte. Kundennummer bleibt intern.
     # Telefon steht direkt unter der Adresse.
-    cw_mm = [9, 15, 15, 14, None, 7, 7, 7, 7, 7, 13, 13]
-    fixed = sum(x for x in cw_mm if x) * mm
-    cw_mm[4] = max(70, (W - fixed) / mm)
+    # Breitere Transportfelder: PA/TKT, RO, E2, E1 und KT sind jetzt gut beschreibbar.
+    cw_mm = [8, 18, 15, 13, 65, 11, 11, 11, 11, 11, 10, 10]
     cw = [x * mm for x in cw_mm]
 
     head0 = [
@@ -359,7 +372,7 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         Paragraph("ZEIT", s["thead"]), "",
     ]
     head1 = ["", "", "", "", "",
-             Paragraph("Pa", s["thead"]), Paragraph("Ro", s["thead"]),
+             Paragraph("PA/TKT", s["thead"]), Paragraph("RO", s["thead"]),
              Paragraph("E2", s["thead"]), Paragraph("E1", s["thead"]),
              Paragraph("KT", s["thead"]),
              Paragraph("von", s["thead"]), Paragraph("bis", s["thead"])]
@@ -411,8 +424,8 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el.append(tab)
     el.append(Spacer(1, 7))
 
-    foot = Table([[_flabel(s, "Unterschrift Fahrer")]],
-                 colWidths=[W], rowHeights=[FOOT_H])
+    foot = Table([[_flabel(s, "Summe Rollis"), _flabel(s, "Unterschrift Fahrer")]],
+                 colWidths=[W * 0.28, W * 0.72], rowHeights=[FOOT_H])
     foot.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.55, LINE),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -425,8 +438,8 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
 
 def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tagname, datum_txt):
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=10 * mm, rightMargin=10 * mm,
-                            topMargin=10 * mm, bottomMargin=10 * mm, title=f"Ladeplan {tagname}")
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=8 * mm, rightMargin=8 * mm,
+                            topMargin=9 * mm, bottomMargin=9 * mm, title=f"Ladeplan {tagname}")
     s = _styles()
     W = doc.width
     story = []
@@ -458,7 +471,7 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tag
 
 # ------------------------------------------------------------------ UI
 st.title("🚚 Tour-/Ladeplan-Generator")
-st.caption("Schlüssel und Ladenummer werden über die CSB-Nummer gematcht. CSB wird angezeigt, Kundennummer bleibt intern.")
+st.caption("Schlüssel und Ladenummer werden über die CSB-Nummer gematcht. CSB wird angezeigt, Kundennummer bleibt intern. PA/TKT-Felder sind verbreitert.")
 
 up = st.file_uploader("1) Quelldatei (.xlsx)", type=["xlsx"])
 csv_up = st.file_uploader("2) Schlüsseldatei (.csv) — optional", type=["csv"])
