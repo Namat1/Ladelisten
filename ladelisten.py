@@ -5,9 +5,10 @@ Logik:
 - Blatt 'LADEREIHENFOLGE' (Tour, LF, SAP, Name, Strasse, PLZ, Ort) -> LF1 oben
 - Kundennummer aus 'KUNDENDATEN', Telefon aus 'KUNDENLISTE', CSB aus KUNDENLISTE/Depot-Blättern per SAP
 - Schlüsselnummer aus CSV wird ausschließlich über die CSB-Nummer gematcht
+- Ladenummer/JPG-Nummer aus CSV wird ausschließlich über die CSB-Nummer gematcht
 - Depot aus DIREKT/MK/HUPA_NMS/HUPA_MALCHOW
 - Tag = 1. Ziffer der Tour (1=Mo .. 6=Sa); pro Tour eine A4-Hochkant-Seite
-Design: schwarz/weiß/grau, klare Felder, Kundendaten getrennt von Schlüssel und Transportfeldern.
+Design: schwarz/weiß/grau, klare Felder, CSB sichtbar als eigene Spalte, Telefon unter Adresse, keine sichtbare Kundennummer-Dopplung.
 """
 import io
 import re
@@ -201,6 +202,55 @@ def lade_nummern(csv_bytes: bytes):
     return m
 
 
+@st.cache_data(show_spinner=False)
+def lade_ladenummern(csv_bytes: bytes):
+    """
+    Ladenummer-/JPG-Zuordnung einlesen.
+    Erwartung bevorzugt: 'CSB Nummer;Ladenummer;...'
+    Rückgabe: {CSB: Ladenummer}
+    """
+    d = None
+    for sep in [";", ",", "\t"]:
+        try:
+            probe = pd.read_csv(
+                io.BytesIO(csv_bytes),
+                sep=sep,
+                dtype=str,
+                encoding="utf-8-sig",
+                engine="python",
+                on_bad_lines="skip",
+            )
+            if probe.shape[1] >= 2:
+                d = probe
+                break
+        except Exception:
+            d = None
+    if d is None or d.shape[1] < 2:
+        return {}
+
+    d.columns = [_clean(c).strip().lstrip("\ufeff") for c in d.columns]
+    lower_cols = {c: c.lower() for c in d.columns}
+
+    csb_col = next((c for c, lc in lower_cols.items() if "csb" in lc), d.columns[0])
+    lade_col = next(
+        (c for c, lc in lower_cols.items() if "ladenummer" in lc or "lade" in lc or "jpg" in lc or "nummer" == lc),
+        d.columns[1],
+    )
+
+    m = {}
+    for _, r in d.iterrows():
+        csb = _norm_num(r.get(csb_col, ""))
+        ladenummer = _clean(r.get(lade_col, ""))
+        if not csb or not ladenummer:
+            continue
+        if not csb.isdigit():
+            continue
+        if ladenummer.lower() in {"ladenummer", "jpg", "jpg nummer", "nummer"}:
+            continue
+        m.setdefault(csb, ladenummer)
+    return m
+
+
 # ------------------------------------------------------------------ Styles
 def _styles():
     return {
@@ -215,9 +265,10 @@ def _styles():
         "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=6.8, textColor=INK, leading=8.2, alignment=1),
         "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=6.8, textColor=INK, leading=8.2),
         "lf": ParagraphStyle("lf", fontName="Helvetica-Bold", fontSize=13.5, textColor=INK, alignment=1, leading=14),
-        "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=15, textColor=INK, alignment=1, leading=16),
-        "cust": ParagraphStyle("cust", fontName="Helvetica", fontSize=8.3, textColor=GRY, leading=10.4),
-        "meta": ParagraphStyle("meta", fontName="Helvetica", fontSize=6.9, textColor=MUTE, leading=8.4),
+        "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=14, textColor=INK, alignment=1, leading=15),
+        "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=12.5, textColor=INK, alignment=1, leading=13.5),
+        "csb": ParagraphStyle("csb", fontName="Helvetica-Bold", fontSize=11.2, textColor=INK, alignment=1, leading=12.2),
+        "cust": ParagraphStyle("cust", fontName="Helvetica", fontSize=8.4, textColor=GRY, leading=10.8),
     }
 
 
@@ -291,21 +342,23 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el.append(warn)
     el.append(Spacer(1, 7))
 
-    # Kundentabelle: Schlüssel, Kunde und Stammdaten getrennt, damit das Lieferfeld nicht mehr überladen ist.
-    cw_mm = [10, 16, None, 27, 7.5, 7.5, 7.5, 7.5, 7.5, 14, 14]
+    # Kundentabelle: CSB sichtbar als eigene, ruhige Spalte. Kundennummer bleibt intern.
+    # Telefon steht direkt unter der Adresse.
+    cw_mm = [9, 15, 15, 14, None, 7, 7, 7, 7, 7, 13, 13]
     fixed = sum(x for x in cw_mm if x) * mm
-    cw_mm[2] = max(55, (W - fixed) / mm)
+    cw_mm[4] = max(70, (W - fixed) / mm)
     cw = [x * mm for x in cw_mm]
 
     head0 = [
         Paragraph("LF", s["thead"]),
         Paragraph("SCHLÜSSEL", s["thead"]),
-        Paragraph("KUNDE / ADRESSE", s["theadL"]),
-        Paragraph("DATEN", s["thead"]),
+        Paragraph("LADENR.", s["thead"]),
+        Paragraph("CSB", s["thead"]),
+        Paragraph("KUNDE / ADRESSE / TELEFON", s["theadL"]),
         Paragraph("TRANSPORT", s["thead"]), "", "", "", "",
         Paragraph("ZEIT", s["thead"]), "",
     ]
-    head1 = ["", "", "", "",
+    head1 = ["", "", "", "", "",
              Paragraph("Pa", s["thead"]), Paragraph("Ro", s["thead"]),
              Paragraph("E2", s["thead"]), Paragraph("E1", s["thead"]),
              Paragraph("KT", s["thead"]),
@@ -316,21 +369,17 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     for k in kunden:
         name = f"<font name=Helvetica-Bold size=9.1 color='#16181C'>{_html(k['name'])}</font>"
         adr = f"<font name=Helvetica size=7.7 color='#3A3F45'>{_html(k['adr'])}</font>"
-        kunde_cell = Paragraph(f"{name}<br/>{adr}", s["cust"])
-
-        meta_lines = [
-            _meta_line("CSB", k.get("csb", "")),
-            _meta_line("KD", k.get("kd", "")),
-            _meta_line("Tel", k.get("tel", "")),
-        ]
-        meta_txt = "<br/>".join([x for x in meta_lines if x])
-        meta_cell = Paragraph(meta_txt, s["meta"])
+        tel = ""
+        if k.get("tel", ""):
+            tel = f"<br/><font name=Helvetica size=7.5 color='#6B7075'>Tel. {_html(k['tel'])}</font>"
+        kunde_cell = Paragraph(f"{name}<br/>{adr}{tel}", s["cust"])
 
         data.append([
             Paragraph(k["lf"], s["lf"]),
             Paragraph(_html(k.get("nr", "")), s["key"]),
+            Paragraph(_html(k.get("ladenr", "")), s["shop"]),
+            Paragraph(_html(k.get("csb", "")), s["csb"]),
             kunde_cell,
-            meta_cell,
             "", "", "", "", "", "", "",
         ])
         row_heights.append(ROW_H)
@@ -342,40 +391,39 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         ("SPAN", (1, 0), (1, 1)),
         ("SPAN", (2, 0), (2, 1)),
         ("SPAN", (3, 0), (3, 1)),
-        ("SPAN", (4, 0), (8, 0)),
-        ("SPAN", (9, 0), (10, 0)),
+        ("SPAN", (4, 0), (4, 1)),
+        ("SPAN", (5, 0), (9, 0)),
+        ("SPAN", (10, 0), (11, 0)),
         ("VALIGN", (0, 0), (-1, 1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, 1), 4), ("BOTTOMPADDING", (0, 0), (-1, 1), 4),
         ("LINEBELOW", (0, 1), (-1, 1), 0.9, INK),
         ("VALIGN", (0, 2), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 2), (-1, -1), 4),
         ("RIGHTPADDING", (0, 2), (-1, -1), 4),
-        ("LEFTPADDING", (2, 2), (2, -1), 7),
-        ("LEFTPADDING", (3, 2), (3, -1), 6),
+        ("LEFTPADDING", (4, 2), (4, -1), 7),
         ("TOPPADDING", (0, 2), (-1, -1), 5), ("BOTTOMPADDING", (0, 2), (-1, -1), 5),
         ("LINEBELOW", (0, 1), (-1, -1), 0.55, LINE),
-        ("LINEAFTER", (0, 0), (3, -1), 0.55, LINE),
-        ("INNERGRID", (4, 2), (10, -1), 0.55, LINE),
-        ("LINEAFTER", (8, 0), (8, -1), 0.55, LINE),
+        ("LINEAFTER", (0, 0), (4, -1), 0.55, LINE),
+        ("INNERGRID", (5, 2), (11, -1), 0.55, LINE),
+        ("LINEAFTER", (9, 0), (9, -1), 0.55, LINE),
         ("BOX", (0, 0), (-1, -1), 0.9, INK),
     ]))
     el.append(tab)
     el.append(Spacer(1, 7))
 
-    foot = Table([[_flabel(s, "Summe Rolli"), _flabel(s, "Rolli Rückgabe"),
-                   _flabel(s, "Anzahl Schlüssel"), _flabel(s, "Sonstiges / Unterschrift Fahrer")]],
-                 colWidths=[W * 0.20, W * 0.20, W * 0.20, W * 0.40], rowHeights=[FOOT_H])
+    foot = Table([[_flabel(s, "Unterschrift Fahrer")]],
+                 colWidths=[W], rowHeights=[FOOT_H])
     foot.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -1), 0.55, LINE),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BACKGROUND", (0, 0), (-1, -1), SOFT),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
     ]))
     el.append(foot)
     return el
 
 
-def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, tour2dep, tagname, datum_txt):
+def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, tagname, datum_txt):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=10 * mm, rightMargin=10 * mm,
                             topMargin=10 * mm, bottomMargin=10 * mm, title=f"Ladeplan {tagname}")
@@ -394,8 +442,9 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, tour2dep, tagname, datum
             kunden.append({
                 "lf": "" if pd.isna(r["LF"]) else str(int(r["LF"])),
                 "nr": csb2num.get(csb, ""),        # Schlüsselnummer per CSB-Nummer
-                "csb": csb,
-                "kd": sap2kd.get(sap, ""),
+                "ladenr": csb2laden.get(csb, ""),  # Ladenummer/JPG-Nummer per CSB-Nummer
+                "csb": csb,                        # sichtbar als eigene Spalte
+                "kd": sap2kd.get(sap, ""),         # nur intern / Debug
                 "tel": sap2tel.get(sap, ""),
                 "name": _clean(r["Name"]),
                 "adr": adr,
@@ -409,23 +458,30 @@ def baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, tour2dep, tagname, datum
 
 # ------------------------------------------------------------------ UI
 st.title("🚚 Tour-/Ladeplan-Generator")
-st.caption("Schlüssel werden über die CSB-Nummer gematcht. Die PDF-Felder sind getrennt in Schlüssel, Kunde, Daten, Transport und Zeit.")
+st.caption("Schlüssel und Ladenummer werden über die CSB-Nummer gematcht. CSB wird angezeigt, Kundennummer bleibt intern.")
 
 up = st.file_uploader("1) Quelldatei (.xlsx)", type=["xlsx"])
 csv_up = st.file_uploader("2) Schlüsseldatei (.csv) — optional", type=["csv"])
+laden_up = st.file_uploader("3) Ladenummer-/JPG-Zuordnung (.csv) — optional", type=["csv"])
 if not up:
     st.info("Quelldatei mit Blatt **LADEREIHENFOLGE** hochladen.")
     st.stop()
 
 df, sap2kd, sap2tel, sap2csb, tour2dep = lade_daten(up.getvalue())
 csb2num = lade_nummern(csv_up.getvalue()) if csv_up else {}
+csb2laden = lade_ladenummern(laden_up.getvalue()) if laden_up else {}
+saps = df["SAP"].apply(_norm_num)
+csb_gefunden = saps.map(lambda sap: sap2csb.get(sap, "") != "").sum()
 if csv_up:
-    saps = df["SAP"].apply(_norm_num)
-    csb_gefunden = saps.map(lambda sap: sap2csb.get(sap, "") != "").sum()
     hit = saps.map(lambda sap: csb2num.get(sap2csb.get(sap, ""), "") != "").sum()
-    st.caption(f"Schlüssel-Matching per CSB-Nummer: {hit}/{len(df)} Kunden · CSB im Kundenstamm gefunden: {csb_gefunden}/{len(df)} · Schlüsseldatei: {len(csb2num)} Zuordnungen")
+    st.caption(f"Schlüssel-Matching per CSB-Nummer: {hit}/{len(df)} Kunden · Schlüsseldatei: {len(csb2num)} Zuordnungen")
     if len(csb2num) == 0:
         st.warning("In der Schlüsseldatei wurden keine verwertbaren Zuordnungen gefunden. Erwartet wird: erste Datenspalte CSB-Nummer, zweite Datenspalte Schlüsselnummer.")
+if laden_up:
+    hit_laden = saps.map(lambda sap: csb2laden.get(sap2csb.get(sap, ""), "") != "").sum()
+    st.caption(f"Ladenummer-Matching per CSB-Nummer: {hit_laden}/{len(df)} Kunden · CSB im Kundenstamm gefunden: {csb_gefunden}/{len(df)} · Ladenummerdatei: {len(csb2laden)} Zuordnungen")
+    if len(csb2laden) == 0:
+        st.warning("In der Ladenummer-Datei wurden keine verwertbaren Zuordnungen gefunden. Erwartet wird zum Beispiel: CSB Nummer;Ladenummer;Kundenname;Ort")
 
 verf = sorted(df["TagZiffer"].unique())
 opt = {f"{TAGE[z]}  ({df.loc[df['TagZiffer'] == z, 'Tour'].nunique()} Touren)": z for z in verf}
@@ -440,7 +496,7 @@ st.caption(f"{df_tag['Tour'].nunique()} Touren · {len(df_tag)} Kunden für **{T
 
 if st.button("📄 Tour-/Ladepläne erzeugen", type="primary", use_container_width=True):
     with st.spinner("Erzeuge PDF …"):
-        pdf = baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, tour2dep, TAGE[z], datum.strftime("%d.%m.%Y"))
+        pdf = baue_pdf(df_tag, sap2kd, sap2tel, sap2csb, csb2num, csb2laden, tour2dep, TAGE[z], datum.strftime("%d.%m.%Y"))
     st.success(f"{df_tag['Tour'].nunique()} Tour-Seiten erzeugt.")
     st.download_button("⬇️ PDF herunterladen", data=pdf,
                        file_name=f"Ladeplan_{TAGE[z]}_{datum.strftime('%Y%m%d')}.pdf",
