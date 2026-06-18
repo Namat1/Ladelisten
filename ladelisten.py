@@ -262,8 +262,8 @@ def _styles():
         "chiplbl": ParagraphStyle("chiplbl", fontName="Helvetica", fontSize=6.1, textColor=MUTE, leading=6.9),
         "flbl": ParagraphStyle("flbl", fontName="Helvetica-Bold", fontSize=6.0, textColor=MUTE, leading=7.0),
         "warn": ParagraphStyle("warn", fontName="Helvetica-Bold", fontSize=8.5, textColor=ACC, leading=10.0),
-        "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=5.7, textColor=INK, leading=6.4, alignment=1),
-        "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=5.9, textColor=INK, leading=6.6),
+        "thead": ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=5.9, textColor=INK, leading=6.8, alignment=1),
+        "theadL": ParagraphStyle("theadL", fontName="Helvetica-Bold", fontSize=5.9, textColor=INK, leading=6.8),
         "lf": ParagraphStyle("lf", fontName="Helvetica-Bold", fontSize=9.6, textColor=INK, alignment=1, leading=10.2),
         "key": ParagraphStyle("key", fontName="Helvetica-Bold", fontSize=9.4, textColor=INK, alignment=1, leading=10.0),
         "shop": ParagraphStyle("shop", fontName="Helvetica-Bold", fontSize=9.0, textColor=INK, alignment=1, leading=9.8),
@@ -273,8 +273,14 @@ def _styles():
 
 
 def _flabel(s, label):
-    label_txt = escape(label.upper()).replace(" ", "&nbsp;")
-    return Paragraph(f"<font name=Helvetica-Bold size=5.8 color='#6B7075'>{label_txt}</font>", s["flbl"])
+    raw_label = _clean(label)
+    use_key_icon = "schlüssel" in raw_label.lower()
+    label_txt = escape(raw_label.upper()).replace(" ", "&nbsp;")
+    if use_key_icon:
+        icon = "<font name=Helvetica-Bold size=6.0 color='#6B7075'>🔑&nbsp;</font>"
+    else:
+        icon = ""
+    return Paragraph(f"{icon}<font name=Helvetica-Bold size=5.8 color='#6B7075'>{label_txt}</font>", s["flbl"])
 
 
 def _meta_line(label: str, value: str) -> str:
@@ -302,6 +308,20 @@ def _estimate_customer_row_height(k) -> float:
         lines += 1
     return max(ROW_H_MIN, (4.0 + lines * 3.05) * mm)
 
+
+
+def _thead_text(s, label: str, key_icon: bool = False, left: bool = False) -> Paragraph:
+    txt = _clean(label)
+    txt = txt.replace("Markt-Schlüssel", "Markt-<br/>Schlüssel")
+    txt = txt.replace("Kundennummer", "Kunden-<br/>nummer")
+    txt = txt.replace("Ladenr.", "Lade-<br/>nr.")
+    txt = txt.replace("Kunde / Adresse / Telefon", "Kunde / Adresse<br/>Telefon")
+    txt = txt.replace("PA/TKT", "PA / TKT")
+    txt = txt.replace("von", "Von")
+    txt = txt.replace("bis", "Bis")
+    if key_icon:
+        txt = "🔑&nbsp;" + txt
+    return Paragraph(txt, s["theadL"] if left else s["thead"])
 
 
 def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
@@ -375,19 +395,19 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     cw = [x * mm for x in cw_mm]
 
     head0 = [
-        Paragraph("LF", s["thead"]),
-        Paragraph("MARKT-<br/>SCHLÜSSEL", s["thead"]),
-        Paragraph("LADENR.", s["thead"]),
-        Paragraph("KUNDEN-<br/>NUMMER", s["thead"]),
-        Paragraph("KUNDE / ADRESSE / TELEFON", s["theadL"]),
-        Paragraph("TRANSPORT", s["thead"]), "", "", "", "",
-        Paragraph("ZEIT", s["thead"]), "",
+        _thead_text(s, "LF"),
+        _thead_text(s, "Markt-Schlüssel", key_icon=True),
+        _thead_text(s, "Ladenr."),
+        _thead_text(s, "Kundennummer"),
+        _thead_text(s, "Kunde / Adresse / Telefon", left=True),
+        _thead_text(s, "Transport"), "", "", "", "",
+        _thead_text(s, "Zeit"), "",
     ]
     head1 = ["", "", "", "", "",
-             Paragraph("PA/TKT", s["thead"]), Paragraph("RO", s["thead"]),
-             Paragraph("E2", s["thead"]), Paragraph("E1", s["thead"]),
-             Paragraph("KT", s["thead"]),
-             Paragraph("von", s["thead"]), Paragraph("bis", s["thead"])]
+             _thead_text(s, "PA/TKT"), _thead_text(s, "RO"),
+             _thead_text(s, "E2"), _thead_text(s, "E1"),
+             _thead_text(s, "KT"),
+             _thead_text(s, "von"), _thead_text(s, "bis")]
     data = [head0, head1]
     row_heights = [None, None]
 
