@@ -274,13 +274,8 @@ def _styles():
 
 def _flabel(s, label):
     raw_label = _clean(label)
-    use_key_icon = "schlüssel" in raw_label.lower()
     label_txt = escape(raw_label.upper()).replace(" ", "&nbsp;")
-    if use_key_icon:
-        icon = "<font name=Helvetica-Bold size=6.0 color='#6B7075'>🔑&nbsp;</font>"
-    else:
-        icon = ""
-    return Paragraph(f"{icon}<font name=Helvetica-Bold size=5.8 color='#6B7075'>{label_txt}</font>", s["flbl"])
+    return Paragraph(f"<font name=Helvetica-Bold size=5.8 color='#6B7075'>{label_txt}</font>", s["flbl"])
 
 
 def _meta_line(label: str, value: str) -> str:
@@ -319,8 +314,6 @@ def _thead_text(s, label: str, key_icon: bool = False, left: bool = False) -> Pa
     txt = txt.replace("PA/TKT", "PA / TKT")
     txt = txt.replace("von", "Von")
     txt = txt.replace("bis", "Bis")
-    if key_icon:
-        txt = "🔑&nbsp;" + txt
     return Paragraph(txt, s["theadL"] if left else s["thead"])
 
 
