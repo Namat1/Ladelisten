@@ -382,17 +382,17 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     # Telefon steht direkt unter der Adresse.
     # Nummernspalten kleiner, damit rechts mehr Platz für die Mengen bleibt.
     # Kundenzeilen wachsen dynamisch, damit lange Namen und Adressen nicht überlappen.
-    cw_mm = [6.5, 15, 11.5, 13.5, None, 12.5, 12.5, 12.5, 12.5, 12.5, 10, 10]
+    cw_mm = [6.5, 15, 13.5, None, 11.5, 12.5, 12.5, 12.5, 12.5, 12.5, 10, 10]
     fixed = sum(x for x in cw_mm if x is not None) * mm
-    cw_mm[4] = max(50, (W - fixed) / mm)
+    cw_mm[3] = max(50, (W - fixed) / mm)
     cw = [x * mm for x in cw_mm]
 
     head0 = [
         _thead_text(s, "LF"),
         _thead_text(s, "Markt-Schlüssel", key_icon=True),
-        _thead_text(s, "Ladenr."),
         _thead_text(s, "Kundennummer"),
         _thead_text(s, "Kunde / Adresse / Telefon", left=True),
+        _thead_text(s, "Ladenr."),
         _thead_text(s, "Transport"), "", "", "", "",
         _thead_text(s, "Zeit"), "",
     ]
@@ -415,9 +415,9 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         data.append([
             _nowrap_num(k["lf"], s["lf"]),
             _nowrap_num(k.get("nr", ""), s["key"]),
-            _nowrap_num(k.get("ladenr", ""), s["shop"]),
             _nowrap_num(k.get("csb", ""), s["csb"]),
             kunde_cell,
+            _nowrap_num(k.get("ladenr", ""), s["shop"]),
             "", "", "", "", "", "", "",
         ])
         row_heights.append(_estimate_customer_row_height(k))
@@ -438,7 +438,7 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         ("VALIGN", (0, 2), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 2), (-1, -1), 2),
         ("RIGHTPADDING", (0, 2), (-1, -1), 2),
-        ("LEFTPADDING", (4, 2), (4, -1), 4),
+        ("LEFTPADDING", (3, 2), (3, -1), 4),
         ("TOPPADDING", (0, 2), (-1, -1), 2), ("BOTTOMPADDING", (0, 2), (-1, -1), 2),
         ("LINEBELOW", (0, 1), (-1, -1), 0.5, LINE),
         ("LINEAFTER", (0, 0), (4, -1), 0.5, LINE),
