@@ -320,7 +320,7 @@ def _thead_text(s, label: str, key_icon: bool = False, left: bool = False) -> Pa
 def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     el = []
 
-    band = Table([[Paragraph("TOUR&nbsp;/&nbsp;LADEPLAN", s["title"]),
+    band = Table([[Paragraph("TOURPLAN", s["title"]),
                    Paragraph("Fleischwerk EDEKA Nord · NFC", s["code"])]],
                  colWidths=[W * 0.62, W * 0.38])
     band.setStyle(TableStyle([
@@ -353,9 +353,9 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
 
     # Gleichmäßiges Grid oben: 3 Reihen mit 4 gleich breiten Feldern.
     fields = [
-        ["Name Fahrer", "Kennzeichen", "Tor", "LKW"],
+        ["Name Fahrer", "LKW Kennzeichen", "Rollianzahl", "Ladetor"],
         ["Kilometer Start", "Kilometer Ende", "Start Arbeitszeit", "Ende Arbeitszeit"],
-        ["Rolli Rückgabe", "Markt-Schlüssel", "Sonstiges", ""],
+        ["Anzahl Schlüssel", "Rolli Rückgabe", "Sonstiges", ""],
     ]
     fdata = [[_flabel(s, f) if f else "" for f in row] for row in fields]
     ftab = Table(fdata, colWidths=[W / 4] * 4, rowHeights=[FIELD_H] * 3)
@@ -382,21 +382,20 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
     # Telefon steht direkt unter der Adresse.
     # Nummernspalten kleiner, damit rechts mehr Platz für die Mengen bleibt.
     # Kundenzeilen wachsen dynamisch, damit lange Namen und Adressen nicht überlappen.
-    cw_mm = [6.5, 15, 11.5, 13.5, None, 12.5, 12.5, 12.5, 12.5, 12.5, 10, 10]
+    cw_mm = [6.5, 15, 13.5, None, 12.5, 12.5, 12.5, 12.5, 12.5, 10, 10]
     fixed = sum(x for x in cw_mm if x is not None) * mm
-    cw_mm[4] = max(50, (W - fixed) / mm)
+    cw_mm[3] = max(50, (W - fixed) / mm)
     cw = [x * mm for x in cw_mm]
 
     head0 = [
         _thead_text(s, "LF"),
         _thead_text(s, "Markt-Schlüssel", key_icon=True),
-        _thead_text(s, "Ladenr."),
         _thead_text(s, "Kundennummer"),
         _thead_text(s, "Kunde / Adresse / Telefon", left=True),
         _thead_text(s, "Transport"), "", "", "", "",
         _thead_text(s, "Zeit"), "",
     ]
-    head1 = ["", "", "", "", "",
+    head1 = ["", "", "", "",
              _thead_text(s, "PA/TKT"), _thead_text(s, "RO"),
              _thead_text(s, "E2"), _thead_text(s, "E1"),
              _thead_text(s, "KT"),
@@ -406,7 +405,11 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
 
     for k in kunden:
         name = f"<font name=Helvetica-Bold size=8.3 color='#16181C'>{_html(k['name'])}</font>"
-        adr = f"<font name=Helvetica size=7.0 color='#3A3F45'>{_html(k['adr'])}</font>"
+        adr_txt = _html(k['adr'])
+        ladenr_val = _clean(k.get("ladenr", ""))
+        if ladenr_val:
+            adr_txt += f" · <font name=Helvetica-Bold color='#16181C'>Ladenr. {escape(ladenr_val)}</font>"
+        adr = f"<font name=Helvetica size=7.0 color='#3A3F45'>{adr_txt}</font>"
         tel = ""
         if k.get("tel", ""):
             tel = f"<br/><font name=Helvetica size=6.8 color='#6B7075'>Tel. {_html(k['tel'])}</font>"
@@ -415,7 +418,6 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         data.append([
             _nowrap_num(k["lf"], s["lf"]),
             _nowrap_num(k.get("nr", ""), s["key"]),
-            _nowrap_num(k.get("ladenr", ""), s["shop"]),
             _nowrap_num(k.get("csb", ""), s["csb"]),
             kunde_cell,
             "", "", "", "", "", "", "",
@@ -429,21 +431,20 @@ def tour_block(tour, depot, tagname, datum_txt, kunden, s, W):
         ("SPAN", (1, 0), (1, 1)),
         ("SPAN", (2, 0), (2, 1)),
         ("SPAN", (3, 0), (3, 1)),
-        ("SPAN", (4, 0), (4, 1)),
-        ("SPAN", (5, 0), (9, 0)),
-        ("SPAN", (10, 0), (11, 0)),
+        ("SPAN", (4, 0), (8, 0)),
+        ("SPAN", (9, 0), (10, 0)),
         ("VALIGN", (0, 0), (-1, 1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, 1), 3), ("BOTTOMPADDING", (0, 0), (-1, 1), 3),
         ("LINEBELOW", (0, 1), (-1, 1), 0.8, INK),
         ("VALIGN", (0, 2), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 2), (-1, -1), 2),
         ("RIGHTPADDING", (0, 2), (-1, -1), 2),
-        ("LEFTPADDING", (4, 2), (4, -1), 4),
+        ("LEFTPADDING", (3, 2), (3, -1), 4),
         ("TOPPADDING", (0, 2), (-1, -1), 2), ("BOTTOMPADDING", (0, 2), (-1, -1), 2),
         ("LINEBELOW", (0, 1), (-1, -1), 0.5, LINE),
-        ("LINEAFTER", (0, 0), (4, -1), 0.5, LINE),
-        ("INNERGRID", (5, 2), (11, -1), 0.5, LINE),
-        ("LINEAFTER", (9, 0), (9, -1), 0.5, LINE),
+        ("LINEAFTER", (0, 0), (3, -1), 0.5, LINE),
+        ("INNERGRID", (4, 2), (10, -1), 0.5, LINE),
+        ("LINEAFTER", (8, 0), (8, -1), 0.5, LINE),
         ("BOX", (0, 0), (-1, -1), 0.8, INK),
     ]))
     el.append(tab)
